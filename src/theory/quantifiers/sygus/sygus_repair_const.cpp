@@ -329,20 +329,18 @@ Node SygusRepairConst::getSkeleton(Node n,
     it = visited.find(cur);
     if (it == visited.end())
     {
-      if (isRepairable(cur))
-      {
-        // replace the argument of the any-constant constructor with a skolem
-        Node sk_var = d_tds->getFreeVarInc(cur[0].getType(), free_var_count);
-        sk_var = skm->mkPurifySkolem(sk_var);
-        sk_vars.push_back(sk_var);
-        visited[cur] = nm->mkNode(cur.getKind(), cur.getOperator(), sk_var);
-        continue;
-      }
+      // Note: repairable nodes are handled in the parent's child loop below so
+      // that each occurrence (even hash-consed duplicates) gets its own fresh
+      // purify variable.  We still need to enqueue non-repairable nodes for the
+      // post-order build step.
       visited[cur] = Node::null();
       visit.push_back(cur);
       for (const Node& cn : cur)
       {
-        visit.push_back(cn);
+        if (!isRepairable(cn))
+        {
+          visit.push_back(cn);
+        }
       }
     }
     else if (it->second.isNull())
@@ -356,10 +354,27 @@ Node SygusRepairConst::getSkeleton(Node n,
       }
       for (const Node& cn : cur)
       {
-        it = visited.find(cn);
-        Assert(it != visited.end());
-        Assert(!it->second.isNull());
-        Node child = it->second;
+        Node child;
+        if (isRepairable(cn))
+        {
+          // Create a fresh purify variable for every occurrence of a repairable
+          // node, regardless of TNode pointer identity.  This avoids the
+          // hash-consing issue where two positions holding structurally-equal
+          // any_constant nodes would otherwise be merged into one skolem,
+          // making the repair query unnecessarily unsat.
+          Node sk_var =
+              d_tds->getFreeVarInc(cn[0].getType(), free_var_count);
+          sk_var = skm->mkPurifySkolem(sk_var);
+          sk_vars.push_back(sk_var);
+          child = nm->mkNode(cn.getKind(), cn.getOperator(), sk_var);
+        }
+        else
+        {
+          it = visited.find(cn);
+          Assert(it != visited.end());
+          Assert(!it->second.isNull());
+          child = it->second;
+        }
         childChanged = childChanged || cn != child;
         children.push_back(child);
       }
