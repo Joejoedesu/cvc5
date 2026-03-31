@@ -119,6 +119,23 @@ CVC5_SYM_ITE_DFN(traits::ubv);
 
 #undef CVC5_SYM_ITE_DFN
 
+// ITE specializations for concrete bool conditions (used in operations.h when
+// prop arguments like borrow/carry are passed as literal false/true)
+#define CVC5_BOOL_ITE_DFN(T)                                                 \
+  template <>                                                                \
+  struct ite<bool, T>                                                        \
+  {                                                                          \
+    static const T iteOp(const bool& cond, const T& l, const T& r)          \
+    {                                                                        \
+      return cond ? l : r;                                                   \
+    }                                                                        \
+  }
+
+CVC5_BOOL_ITE_DFN(traits::sbv);
+CVC5_BOOL_ITE_DFN(traits::ubv);
+
+#undef CVC5_BOOL_ITE_DFN
+
 template <>
 traits::ubv orderEncode<traits, traits::ubv>(const traits::ubv& b)
 {
@@ -543,6 +560,13 @@ symbolicBitVector<isSigned> symbolicBitVector<isSigned>::modularAdd(
     const symbolicBitVector<isSigned>& op) const
 {
   return *this + op;
+}
+
+template <bool isSigned>
+symbolicBitVector<isSigned> symbolicBitVector<isSigned>::modularSubtract(
+    const symbolicBitVector<isSigned>& op) const
+{
+  return *this - op;
 }
 
 template <bool isSigned>

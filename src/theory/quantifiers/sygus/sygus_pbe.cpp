@@ -54,6 +54,20 @@ bool SygusPbe::initialize(CVC5_UNUSED Node conj,
     return false;
   }
 
+  // If any candidate's grammar contains any-constant constructors (Constant T),
+  // PBE cannot handle them: constructSolution always fails for BV-placeholder
+  // terms, recordSolution is never called, and SygusRepairConst is never
+  // triggered. Decline so that CEGIS (which supports repair) becomes master.
+  for (const Node& c : candidates)
+  {
+    TypeNode tn = c.getType();
+    d_tds->registerSygusType(tn);
+    if (d_tds->getTypeInfo(tn).hasSubtermSymbolicCons())
+    {
+      return false;
+    }
+  }
+
   // check if all candidates are valid examples
   ExampleInfer* ei = d_parent->getExampleInfer();
   d_is_pbe = true;
