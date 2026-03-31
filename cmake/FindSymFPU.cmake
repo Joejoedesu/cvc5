@@ -22,7 +22,10 @@ endif()
 
 if(NOT SymFPU_FOUND_SYSTEM)
   # Use local symfpu checkout for development
-  set(SymFPU_INCLUDE_DIR "/home/zhouhua/Research/Formal")
+  get_filename_component(CVC5_PARENT_DIR ${PROJECT_SOURCE_DIR} DIRECTORY)
+
+  set(SymFPU_INCLUDE_DIR "${CVC5_PARENT_DIR}")
+  message(STATUS "SymFPU not found system-wide. Using local path: ${SymFPU_INCLUDE_DIR}")
 
   # Commented out for local development -- restore to use downloaded symfpu
   # check_ep_downloaded("SymFPU-EP")
