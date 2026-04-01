@@ -329,6 +329,17 @@ Node SygusRepairConst::getSkeleton(Node n,
     it = visited.find(cur);
     if (it == visited.end())
     {
+      if (isRepairable(cur))
+      {
+        // cur is the root node and is itself repairable (no parent to handle
+        // it in the child loop below).  Create a fresh purify variable here,
+        // matching the same logic used for repairable children below.
+        Node sk_var = d_tds->getFreeVarInc(cur[0].getType(), free_var_count);
+        sk_var = skm->mkPurifySkolem(sk_var);
+        sk_vars.push_back(sk_var);
+        visited[cur] = nm->mkNode(cur.getKind(), cur.getOperator(), sk_var);
+        continue;
+      }
       // Note: repairable nodes are handled in the parent's child loop below so
       // that each occurrence (even hash-consed duplicates) gets its own fresh
       // purify variable.  We still need to enqueue non-repairable nodes for the
