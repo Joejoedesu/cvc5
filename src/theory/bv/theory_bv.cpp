@@ -18,6 +18,8 @@
 #include "proof/proof_checker.h"
 #include "theory/bv/bv_solver_bitblast.h"
 #include "theory/bv/bv_solver_bitblast_internal.h"
+#include "theory/bv/bv_solver_bitwuzla.h"
+#include "theory/bv/bv_solver_bitwuzla_safe.h"
 #include "theory/bv/theory_bv_rewrite_rules_normalization.h"
 #include "theory/bv/theory_bv_rewrite_rules_simplification.h"
 #include "theory/bv/theory_bv_utils.h"
@@ -47,6 +49,14 @@ TheoryBV::TheoryBV(Env& env,
   {
     case options::BVSolver::BITBLAST:
       d_internal.reset(new BVSolverBitblast(env, &d_state, d_im));
+      break;
+
+    case options::BVSolver::BITWUZLA:
+      d_internal.reset(new BVSolverBitwuzla(env, &d_state, d_im));
+      break;
+
+    case options::BVSolver::BITWUZLA_SAFE:
+      d_internal.reset(new BVSolverBitwuzlaSafe(env, &d_state, d_im));
       break;
 
     default:

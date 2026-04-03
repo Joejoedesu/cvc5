@@ -667,6 +667,10 @@ libcvc5_add_sources(
   theory/bv/bv_solver_bitblast.h
   theory/bv/bv_solver_bitblast_internal.cpp
   theory/bv/bv_solver_bitblast_internal.h
+  theory/bv/bv_solver_bitwuzla.cpp
+  theory/bv/bv_solver_bitwuzla.h
+  theory/bv/bv_solver_bitwuzla_safe.cpp
+  theory/bv/bv_solver_bitwuzla_safe.h
   theory/bv/int_blaster.cpp
   theory/bv/int_blaster.h
   theory/bv/macro_rewrite_elaborator.cpp
@@ -1595,6 +1599,13 @@ endif()
 
 add_dependencies(cvc5-obj SymFPU)
 target_include_directories(cvc5-obj SYSTEM PRIVATE ${SymFPU_INCLUDE_DIR})
+
+# Bitwuzla BV backend
+target_include_directories(cvc5-obj SYSTEM PRIVATE /home/zhouhua/Research/Formal/bitwuzla/include)
+target_link_libraries(cvc5 PRIVATE /home/zhouhua/Research/Formal/bitwuzla/build/src/libbitwuzla.so)
+target_link_libraries(cvc5 PRIVATE /home/zhouhua/Research/Formal/bitwuzla/build/src/lib/libbitwuzlabb.so)
+target_link_libraries(cvc5 PRIVATE /home/zhouhua/Research/Formal/bitwuzla/build/src/lib/libbitwuzlabv.so)
+target_link_libraries(cvc5 PRIVATE /home/zhouhua/Research/Formal/bitwuzla/build/src/lib/libbitwuzlals.so)
 
 # GMP has to be included at the end because of linker ordering issues when 
 # generating a static library.

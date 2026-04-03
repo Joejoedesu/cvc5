@@ -105,6 +105,12 @@ name   = "Bitvector Theory"
 [[option.mode.BITBLAST_INTERNAL]]
   name = "bitblast-internal"
   help = "Enables bitblasting to internal SAT solver with proof support."
+[[option.mode.BITWUZLA]]
+  name = "bitwuzla"
+  help = "Enables Bitwuzla BV backend (push/pop with learned-clause reuse)."
+[[option.mode.BITWUZLA_SAFE]]
+  name = "bitwuzla-safe"
+  help = "Enables Bitwuzla BV backend using check_sat(assumptions) — no learned-clause reuse, no push/pop soundness dependency."
 
 [[option]]
   name       = "bvAssertInput"

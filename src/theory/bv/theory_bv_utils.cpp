@@ -57,6 +57,23 @@ unsigned getSignExtendAmount(TNode node)
   return node.getOperator().getConst<BitVectorSignExtend>().d_signExtendAmount;
 }
 
+unsigned getZeroExtendAmount(TNode node)
+{
+  return node.getOperator().getConst<BitVectorZeroExtend>().d_zeroExtendAmount;
+}
+
+unsigned getRotateLeftAmount(TNode node)
+{
+  return node.getOperator().getConst<BitVectorRotateLeft>().d_rotateLeftAmount;
+}
+
+unsigned getRotateRightAmount(TNode node)
+{
+  return node.getOperator()
+      .getConst<BitVectorRotateRight>()
+      .d_rotateRightAmount;
+}
+
 /* ------------------------------------------------------------------------- */
 
 bool isOnes(TNode node)
