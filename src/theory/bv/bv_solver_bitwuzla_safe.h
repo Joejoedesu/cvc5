@@ -102,6 +102,8 @@ class BVSolverBitwuzlaSafe : public BVSolver
   /** Bitwuzla term manager and solver instance. */
   bitwuzla::TermManager d_bitwuzla_tm;
   std::unique_ptr<bitwuzla::Bitwuzla> d_bitwuzla;
+  /** Terminator that forwards cvc5 resource/time-limit checks to bitwuzla. */
+  std::unique_ptr<bitwuzla::Terminator> d_terminator;
   std::unordered_map<Node, bitwuzla::Term> d_translation_cache;
 
   /**

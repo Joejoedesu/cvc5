@@ -97,6 +97,8 @@ class BVSolverBitwuzla : public BVSolver
   /** Bit-blaster used to bit-blast atoms/terms. */
   bitwuzla::TermManager d_bitwuzla_tm;
   std::unique_ptr<bitwuzla::Bitwuzla> d_bitwuzla;
+  /** Terminator that forwards cvc5 resource/time-limit checks to bitwuzla. */
+  std::unique_ptr<bitwuzla::Terminator> d_terminator;
   std::unordered_map<Node, bitwuzla::Term> d_translation_cache;
 
   /**

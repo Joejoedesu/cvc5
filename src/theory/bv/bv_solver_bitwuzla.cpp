@@ -22,10 +22,34 @@
 #include "theory/bv/theory_bv.h"
 #include "theory/bv/theory_bv_utils.h"
 #include "theory/theory_model.h"
+#include "util/resource_manager.h"
 
 namespace cvc5::internal {
 namespace theory {
 namespace bv {
+
+/**
+ * Terminator for bitwuzla that forwards cvc5's resource limit checks.
+ *
+ * Bitwuzla polls terminate() periodically inside check_sat(). Returning true
+ * causes bitwuzla to abort the current check and return UNKNOWN, which cvc5
+ * then maps to a timeout/resource-out result — the same mechanism used by the
+ * CaDiCaL integration.
+ *
+ * The terminator is reconnected on each initSatSolver() call (including after
+ * a reset-assertions). The bitwuzla push/pop stack tracked by d_bitwuzlaLevel
+ * and BitwuzlaContextNotify is not affected: push/pop operations occur before
+ * check_sat(), so the stack level is always consistent when a timeout fires.
+ */
+class BitwuzlaTerminator : public bitwuzla::Terminator
+{
+ public:
+  BitwuzlaTerminator(ResourceManager& resmgr) : d_resmgr(resmgr) {}
+  bool terminate() override { return d_resmgr.out(); }
+
+ private:
+  ResourceManager& d_resmgr;
+};
 
 /**
  * Notifies the BV solver when the SAT context is popped.
@@ -315,6 +339,8 @@ void BVSolverBitwuzla::initSatSolver()
   opts.set(bitwuzla::Option::PRODUCE_UNSAT_CORES, true);
   opts.set(bitwuzla::Option::PRODUCE_MODELS, true);
   d_bitwuzla.reset(new bitwuzla::Bitwuzla(d_bitwuzla_tm, opts));
+  d_terminator.reset(new BitwuzlaTerminator(*resourceManager()));
+  d_bitwuzla->configure_terminator(d_terminator.get());
 }
 
 void BVSolverBitwuzla::notifyContextPop()

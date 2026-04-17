@@ -25,16 +25,34 @@
 
 #include <bitwuzla/cpp/bitwuzla.h>
 
-
 #include "options/bv_options.h"
 #include "prop/sat_solver_factory.h"
 #include "theory/bv/theory_bv.h"
 #include "theory/bv/theory_bv_utils.h"
 #include "theory/theory_model.h"
+#include "util/resource_manager.h"
 
 namespace cvc5::internal {
 namespace theory {
 namespace bv {
+
+/**
+ * Terminator for bitwuzla that forwards cvc5's resource limit checks.
+ *
+ * Bitwuzla polls terminate() periodically inside check_sat(). Returning true
+ * causes bitwuzla to abort the current check and return UNKNOWN, which cvc5
+ * then maps to a timeout/resource-out result — the same mechanism used by the
+ * CaDiCaL integration.
+ */
+class BitwuzlaSafeTerminator : public bitwuzla::Terminator
+{
+ public:
+  BitwuzlaSafeTerminator(ResourceManager& resmgr) : d_resmgr(resmgr) {}
+  bool terminate() override { return d_resmgr.out(); }
+
+ private:
+  ResourceManager& d_resmgr;
+};
 
 /**
  * Notifies the BV solver when assertions were reset.
@@ -276,6 +294,8 @@ void BVSolverBitwuzlaSafe::initSatSolver()
   opts.set(bitwuzla::Option::PRODUCE_UNSAT_ASSUMPTIONS, true);
   opts.set(bitwuzla::Option::PRODUCE_MODELS, true);
   d_bitwuzla.reset(new bitwuzla::Bitwuzla(d_bitwuzla_tm, opts));
+  d_terminator.reset(new BitwuzlaSafeTerminator(*resourceManager()));
+  d_bitwuzla->configure_terminator(d_terminator.get());
 }
 
 namespace {
