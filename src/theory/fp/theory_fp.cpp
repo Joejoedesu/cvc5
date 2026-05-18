@@ -311,14 +311,13 @@ bool TheoryFp::refineAbstraction(TheoryModel *m, TNode abstract, TNode concrete)
       Assert(!concreteValue.getConst<FloatingPoint>().isNaN());
 
       Node correctRoundingMode = nm->mkNode(Kind::EQUAL, concrete[0], rmValue);
-      // TODO : Generalise to all rounding modes  #1914
 
       // First the "forward" constraints
       Node fg = nm->mkNode(
           Kind::IMPLIES,
           correctRoundingMode,
           nm->mkNode(
-              Kind::EQUAL,
+              Kind::IMPLIES,
               nm->mkNode(Kind::GEQ, concrete[1], realValue),
               nm->mkNode(Kind::FLOATINGPOINT_GEQ, abstract, concreteValue)));
       handleLemma(fg, InferenceId::FP_PREPROCESS);
@@ -327,7 +326,7 @@ bool TheoryFp::refineAbstraction(TheoryModel *m, TNode abstract, TNode concrete)
           Kind::IMPLIES,
           correctRoundingMode,
           nm->mkNode(
-              Kind::EQUAL,
+              Kind::IMPLIES,
               nm->mkNode(Kind::LEQ, concrete[1], realValue),
               nm->mkNode(Kind::FLOATINGPOINT_LEQ, abstract, concreteValue)));
       handleLemma(fl, InferenceId::FP_PREPROCESS);
@@ -335,28 +334,80 @@ bool TheoryFp::refineAbstraction(TheoryModel *m, TNode abstract, TNode concrete)
       // Then the backwards constraints
       if (!abstractValue.getConst<FloatingPoint>().isInfinite())
       {
+        FloatingPoint abstractFp = abstractValue.getConst<FloatingPoint>();
+        FloatingPointSize fpSize = abstractFp.getSize();
         Node realValueOfAbstract =
-            rewrite(nm->mkNode(Kind::FLOATINGPOINT_TO_REAL_TOTAL,
-                               abstractValue,
-                               nm->mkConstReal(Rational(0U))));
+            nm->mkConstReal(abstractFp.convertToRationalTotal(Rational(0U)));
+        bool isRtn = rmValue
+                     == nm->mkConst(RoundingMode::ROUND_TOWARD_NEGATIVE);
+        bool isRtp = rmValue
+                     == nm->mkConst(RoundingMode::ROUND_TOWARD_POSITIVE);
+        bool isRtz = rmValue == nm->mkConst(RoundingMode::ROUND_TOWARD_ZERO);
+        bool isDirected = isRtn || isRtp;
+        bool roundsTowardLower =
+            (isDirected && isRtn) || (isRtz && !abstractFp.isNegative());
+        bool roundsTowardUpper =
+            (isDirected && isRtp) || (isRtz && !abstractFp.isPositive());
+        uint32_t totalBits = fpSize.exponentWidth() + fpSize.significandWidth();
+        BitVector bits = abstractFp.pack();
 
-        Node bg = nm->mkNode(
-            Kind::IMPLIES,
-            correctRoundingMode,
-            nm->mkNode(
-                Kind::EQUAL,
-                nm->mkNode(Kind::GEQ, concrete[1], realValueOfAbstract),
-                nm->mkNode(Kind::FLOATINGPOINT_GEQ, abstract, abstractValue)));
-        handleLemma(bg, InferenceId::FP_PREPROCESS);
+        // Directed rounding gives one exact real bound: RTN for lower bounds
+        // and RTP for upper bounds. RTZ has the same behavior depending on the
+        // sign of the target value. The opposite sides still need the open
+        // predecessor/successor bounds used for nearest rounding modes.
+        FloatingPoint predecessor =
+            abstractFp.isZero()
+                ? FloatingPoint::makeMinSubnormal(fpSize, true)
+                : FloatingPoint(fpSize,
+                                abstractFp.isPositive()
+                                    ? bits - BitVector(totalBits, 1U)
+                                    : bits + BitVector(totalBits, 1U));
+        if (roundsTowardLower || !predecessor.isInfinite())
+        {
+          Node lowerBound =
+              roundsTowardLower
+                  ? nm->mkNode(Kind::GEQ, concrete[1], realValueOfAbstract)
+                  : nm->mkNode(Kind::GT,
+                               concrete[1],
+                               nm->mkConstReal(predecessor
+                                                   .convertToRationalTotal(
+                                                       Rational(0U))));
+          Node bg = nm->mkNode(
+              Kind::IMPLIES,
+              correctRoundingMode,
+              nm->mkNode(
+                  Kind::IMPLIES,
+                  nm->mkNode(Kind::FLOATINGPOINT_GEQ, abstract, abstractValue),
+                  lowerBound));
+          handleLemma(bg, InferenceId::FP_PREPROCESS);
+        }
 
-        Node bl = nm->mkNode(
-            Kind::IMPLIES,
-            correctRoundingMode,
-            nm->mkNode(
-                Kind::EQUAL,
-                nm->mkNode(Kind::LEQ, concrete[1], realValueOfAbstract),
-                nm->mkNode(Kind::FLOATINGPOINT_LEQ, abstract, abstractValue)));
-        handleLemma(bl, InferenceId::FP_PREPROCESS);
+        FloatingPoint successor =
+            abstractFp.isZero()
+                ? FloatingPoint::makeMinSubnormal(fpSize, false)
+                : FloatingPoint(fpSize,
+                                abstractFp.isPositive()
+                                    ? bits + BitVector(totalBits, 1U)
+                                    : bits - BitVector(totalBits, 1U));
+        if (roundsTowardUpper || !successor.isInfinite())
+        {
+          Node upperBound =
+              roundsTowardUpper
+                  ? nm->mkNode(Kind::LEQ, concrete[1], realValueOfAbstract)
+                  : nm->mkNode(Kind::LT,
+                               concrete[1],
+                               nm->mkConstReal(successor
+                                                   .convertToRationalTotal(
+                                                       Rational(0U))));
+          Node bl = nm->mkNode(
+              Kind::IMPLIES,
+              correctRoundingMode,
+              nm->mkNode(
+                  Kind::IMPLIES,
+                  nm->mkNode(Kind::FLOATINGPOINT_LEQ, abstract, abstractValue),
+                  upperBound));
+          handleLemma(bl, InferenceId::FP_PREPROCESS);
+        }
       }
 
       return true;
